@@ -1,0 +1,71 @@
+<div id="prompt-slot-fixed-btn" title="Megumin Suite">
+    <i class="fa-solid fa-wand-magic-sparkles"></i>
+</div>
+
+<div id="prompt-slot-modal-overlay">
+    <div class="ps-modern-modal">
+
+        <!-- LEFT SIDEBAR -->
+        <aside class="ps-sidebar">
+            <div class="ps-sidebar-header">
+                <div class="ps-sidebar-icon">
+                    <img src="scripts/extensions/third-party/Megumin-Suite/img/Cat.png" alt="Logo" onerror="this.src='img/ai4.png'" />
+                </div>
+                <div class="ps-sidebar-title">
+                    <h2>Megumin Suite</h2>
+                    <p>Workflow Builder</p>
+                </div>
+            </div>
+
+            <div class="ps-modern-dots" id="ps_dynamic_dots">
+                <div class="ps-stages-label">Configuration Stages</div>
+                <div class="ps-dot active sidebar-step" id="dot_0"><span class="step-num">1</span> <span class="step-text">System Mode</span></div>
+                <div class="ps-dot sidebar-step" id="dot_1"><span class="step-num">2</span> <span class="step-text">Personality & Toggles</span></div>
+                <div class="ps-dot sidebar-step" id="dot_2"><span class="step-num">3</span> <span class="step-text">Writing Style</span></div>
+                <div class="ps-dot sidebar-step" id="dot_3"><span class="step-num">4</span> <span class="step-text">Add-ons</span></div>
+                <div class="ps-dot sidebar-step" id="dot_4"><span class="step-num">5</span> <span class="step-text">Format Blocks</span></div>
+                <div class="ps-dot sidebar-step" id="dot_5"><span class="step-num">6</span> <span class="step-text">AI Model</span></div>
+            </div>
+
+            <!-- TALLER Character Preview Area -->
+            <div class="ps-sidebar-footer">
+                <div class="ps-character-image-container">
+                    <img id="ps_char_pfp" src="" onerror="this.src='scripts/extensions/third-party/Megumin-Suite/img/default.png'" />
+                    <div class="ps-character-label">
+                        <div class="sub">Active Profile</div>
+                        <div class="name" id="ps_char_rule_label">Global Default</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="ps-wizard-area">
+            <header class="ps-main-header">
+                <div class="ps-header-left">
+                    <div class="ps-breadcrumbs">Step <span id="ps_breadcrumb_num">1</span> of 6</div>
+                    <h1 id="ps_stage_title" class="ps-stage-header">Stage Title</h1>
+                    <p id="ps_stage_sub" class="ps-stage-sub">Instructions</p>
+                </div>
+                <div class="ps-status-pill">
+                    <!-- Clean glowing text, no circle/border -->
+                    <span id="ps_rule_status_main" class="ps-status-glow">Status</span>
+                </div>
+            </header>
+
+            <div class="ps-main-body" id="ps_stage_content"></div>
+
+            <footer class="ps-footer">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button id="ps_btn_reset" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                    <div id="ps_save_indicator" style="display: none; color: #10b981; font-size: 0.8rem; font-weight: 600; margin-left: 10px;"><i class="fa-solid fa-check"></i> Autosaved</div>
+                </div>
+                <div style="display: flex; gap: 12px; margin-left: auto;">
+                    <button id="ps_btn_prev" class="ps-modern-btn secondary">Back</button>
+                    <button id="ps_btn_save_close" class="ps-modern-btn primary" style="background: #10b981; color: #fff;"><i class="fa-solid fa-floppy-disk"></i> Save & Close</button>
+                    <button id="ps_btn_next" class="ps-modern-btn primary">Next Step</button>
+                </div>
+            </footer>
+        </main>
+    </div>
+</div>
