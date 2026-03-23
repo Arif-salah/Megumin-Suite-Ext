@@ -88,7 +88,7 @@ The Suite injects a structured thinking process that forces the AI custom thinki
 7. Click the floating Megumin Suite button on your screen
 8. You're done. That's it. Go RP.
 
-> ⚠️ **Seriously** — load BOTH presets. The Suite preset is your main one. The Engine preset is what the Suite uses internally to generate writing rules and insights. If you skip the Engine preset, the AI generation features won't work and you'll come complain to me about it and I'll just link you back to this paragraph.
+> ⚠️ **Seriously** — load BOTH presets. The Suite preset is your main one. The Engine preset is what the Suite uses internally to generate writing rules and insights. (if you are using anything other than gemini toggle off "Enhance Definitions") If you skip the Engine preset, the AI generation features won't work and you'll come complain to me about it and I'll just link you back to this paragraph.
 
 ---
 
