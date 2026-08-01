@@ -3617,10 +3617,12 @@ async function igFetchComfyLists() {
             samplers.forEach(sa => sel.append(`<option value="${sa}">${sa}</option>`));
             if (s.selectedSampler) sel.val(s.selectedSampler);
         }
-        const lRes = await fetch(`${url}/object_info/LoraLoader`);
+        const loraInfoUrl = `${url.replace(/\/$/, '')}/object_info/LoraLoader`;
+        const lRes = await fetch(`/proxy/${encodeURIComponent(loraInfoUrl)}`, { headers: getRequestHeaders() });
         if (lRes.ok) {
-            const json = await lRes.json();
-            const files = json['LoraLoader'].input.required.lora_name[0];
+            const loraInfo = await lRes.json();
+            const files = Array.isArray(loraInfo) ? loraInfo : loraInfo?.LoraLoader?.input?.required?.lora_name?.[0];
+            if (!Array.isArray(files)) throw new Error('ComfyUI returned an invalid LoRA list.');
             for (let i = 1; i <= 4; i++) {
                 const sel = $(`#ig_lora_${i}`); 
                 const val = i === 1 ? s.selectedLora : s[`selectedLora${i}`];
@@ -3630,6 +3632,24 @@ async function igFetchComfyLists() {
             }
         }
     } catch (e) { console.warn(`[Megumin-Suite] ComfyLists failed`, e); }
+}
+
+async function igRunComfyWorkflow(workflow) {
+    const response = await fetch('/api/sd/comfy/generate', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({
+            url: localProfile.imageGen.comfyUrl,
+            prompt: JSON.stringify({ prompt: workflow }),
+        }),
+    });
+
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'ComfyUI returned an error.');
+    }
+
+    return response.json();
 }
 
 // -------------------------------------------------------------
@@ -3835,48 +3855,23 @@ async function npcGeneratePfp(npcName) {
     }
 
     try {
-        const res = await fetch(`${s.comfyUrl}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow }) });
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-
         showKazumaProgress("Rendering Portrait...");
-        return new Promise((resolve) => {
-            const checkInterval = setInterval(async () => {
-                try {
-                    const h = await (await fetch(`${s.comfyUrl}/history/${data.prompt_id}`)).json();
-                    if (h[data.prompt_id]) {
-                        clearInterval(checkInterval);
-                        let finalImage = null;
-                        for (const nodeId in h[data.prompt_id].outputs) {
-                            const nodeOut = h[data.prompt_id].outputs[nodeId];
-                            if (nodeOut.images && nodeOut.images.length > 0) { finalImage = nodeOut.images[0]; break; }
-                        }
-                        if (finalImage) {
-                            const imgUrl = `${s.comfyUrl}/view?filename=${finalImage.filename}&subfolder=${finalImage.subfolder}&type=${finalImage.type}`;
-                            const response = await fetch(imgUrl); const blob = await response.blob();
-                            const base64 = await new Promise((r) => { const reader = new FileReader(); reader.onloadend = () => r(reader.result); reader.readAsDataURL(blob); });
+        const { format, data } = await igRunComfyWorkflow(workflow);
+        const base64 = `data:image/${format};base64,${data}`;
 
-                            // Compress to JPEG
-                            const compressed = await new Promise((r) => {
-                                const img = new Image(); img.src = base64;
-                                img.onload = () => { const cvs = document.createElement('canvas'); cvs.width = img.width; cvs.height = img.height; cvs.getContext('2d').drawImage(img, 0, 0); r(cvs.toDataURL("image/jpeg", 0.85)); };
-                                img.onerror = () => r(base64);
-                            });
-
-                            npc.pfp = compressed;
-                            saveProfileToMemory();
-                            $("#kazuma_progress_overlay").hide();
-                            toastr.success(`Portrait generated for ${npcName}!`);
-                            renderNpcList();
-                            resolve(compressed);
-                        } else {
-                            $("#kazuma_progress_overlay").hide();
-                            resolve(null);
-                        }
-                    }
-                } catch (e) { }
-            }, 1000);
+        // Compress to JPEG
+        const compressed = await new Promise((resolve) => {
+            const img = new Image(); img.src = base64;
+            img.onload = () => { const cvs = document.createElement('canvas'); cvs.width = img.width; cvs.height = img.height; cvs.getContext('2d').drawImage(img, 0, 0); resolve(cvs.toDataURL("image/jpeg", 0.85)); };
+            img.onerror = () => resolve(base64);
         });
+
+        npc.pfp = compressed;
+        saveProfileToMemory();
+        $("#kazuma_progress_overlay").hide();
+        toastr.success(`Portrait generated for ${npcName}!`);
+        renderNpcList();
+        return compressed;
     } catch (e) { $("#kazuma_progress_overlay").hide(); toastr.error("ComfyUI Error: " + e.message); return null; }
 }
 
@@ -6758,110 +6753,68 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
     }
 
     try {
-        const res = await fetch(`${s.comfyUrl}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow }) });
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-
         showKazumaProgress("Rendering Image...");
-        const checkInterval = setInterval(async () => {
-            try {
-                const h = await (await fetch(`${s.comfyUrl}/history/${data.prompt_id}`)).json();
-                if (h[data.prompt_id]) {
-                    clearInterval(checkInterval);
-                    let finalImage = null;
-                    for (const nodeId in h[data.prompt_id].outputs) {
-                        const nodeOut = h[data.prompt_id].outputs[nodeId];
-                        if (nodeOut.images && nodeOut.images.length > 0) { finalImage = nodeOut.images[0]; break; }
-                    }
-                    if (finalImage) {
-                        showKazumaProgress("Downloading...");
-                        const imgUrl = `${s.comfyUrl}/view?filename=${finalImage.filename}&subfolder=${finalImage.subfolder}&type=${finalImage.type}`;
+        const result = await igRunComfyWorkflow(workflow);
+        const base64Raw = `data:image/${result.format};base64,${result.data}`;
+        let base64Clean = base64Raw;
+        let format = result.format || "png";
+        if (s.compressImages) {
+            base64Clean = await new Promise((resolve) => { const img = new Image(); img.src = base64Raw; img.onload = () => { const cvs = document.createElement('canvas'); cvs.width = img.width; cvs.height = img.height; cvs.getContext('2d').drawImage(img, 0, 0); resolve(cvs.toDataURL("image/jpeg", 0.9)); }; img.onerror = () => resolve(base64Raw); });
+            format = "jpeg";
+        }
 
-                        // Download & Compress
-                        const response = await fetch(imgUrl); const blob = await response.blob();
-                        const base64Raw = await new Promise((res) => { const r = new FileReader(); r.onloadend = () => res(r.result); r.readAsDataURL(blob); });
-                        let base64Clean = base64Raw; let format = "png";
-                        if (s.compressImages) {
-                            base64Clean = await new Promise((res) => { const img = new Image(); img.src = base64Raw; img.onload = () => { const cvs = document.createElement('canvas'); cvs.width = img.width; cvs.height = img.height; cvs.getContext('2d').drawImage(img, 0, 0); res(cvs.toDataURL("image/jpeg", 0.9)); }; img.onerror = () => res(base64Raw); });
-                            format = "jpeg";
-                        }
+        // Insert to Chat
+        const charName = getContext().characters[getContext().characterId]?.name || "User";
+        const savedPath = await saveBase64AsFile(base64Clean.split(',')[1], charName, `${charName}_${humanizedDateTime()}`, format);
+        const mediaAttach = {
+            url: savedPath,
+            type: "image",
+            source: "generated",
+            title: finalPrompt,
+            generation_type: "free"
+        };
 
-                        // Insert to Chat
-                        const charName = getContext().characters[getContext().characterId]?.name || "User";
-                        const savedPath = await saveBase64AsFile(base64Clean.split(',')[1], charName, `${charName}_${humanizedDateTime()}`, format);
-                        const mediaAttach = {
-                            url: savedPath,
-                            type: "image",
-                            source: "generated",
-                            title: finalPrompt,
-                            generation_type: "free"
-                        };
-
-                        if (target && target.isInlineAuto && target.mode === "inline") {
-                            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
-                            const imgTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper">
+        if (target && target.isInlineAuto && target.mode === "inline") {
+            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
+            const imgTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper">
 <img src="${savedPath}" title="${safePrompt}" alt="KazumaInline" data-kazumaid="${wrapperId}" style="max-width: 100%; border-radius: 8px; display: block;" />
 </div><!-- kazuma-inline-end:${wrapperId} -->`;
-                            
-                            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
-                                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}"[^>]*>.*?<\/div>`, "g");
-                                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, imgTag);
-                            } else {
-                                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
-                                if (placeholderRegex.test(target.message.mes)) {
-                                    target.message.mes = target.message.mes.replace(placeholderRegex, imgTag);
-                                } else {
-                                    target.message.mes += `\n\n${imgTag}`;
-                                }
-                            }
-                            
-                            await saveChat();
-                            if (typeof updateMessageBlock === "function") {
-                                updateMessageBlock(target.index, target.message);
-                            } else {
-                                await reloadCurrentChat();
-                            }
-                            toastr.success("Image injected inline!");
-                            
-                            // Add retry buttons via DOM manipulation (after ST renders)
-                            setTimeout(() => addKazumaRetryButtons(target.index), 150);
-                        } else if (target && target.message && !target.isInlineAuto) {
-                            if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
-                            target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
-                            if (typeof appendMediaToMessage === "function") appendMediaToMessage(target.message, target.element);
-                            await saveChat(); toastr.success("Gallery updated!");
-                        } else {
-                            const newMsg = { name: "Image Gen Kazuma", is_user: false, is_system: true, send_date: Date.now(), mes: "", extra: { media: [mediaAttach], media_display: "gallery", media_index: 0 }, force_avatar: "img/five.png" };
-                            getContext().chat.push(newMsg); await saveChat();
-                            if (typeof addOneMessage === "function") addOneMessage(newMsg); else await reloadCurrentChat();
-                            toastr.success("Image inserted!");
-                        }
-                        $("#kazuma_progress_overlay").hide();
-                    } else { 
-                        $("#kazuma_progress_overlay").hide(); 
-                        if (target && target.isInlineAuto && target.mode === "inline") {
-                            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
-                            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
-                            
-                            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
-                                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
-                                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, failTag);
-                            } else {
-                                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
-                                target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
-                            }
-                            saveChat();
-                            if (typeof updateMessageBlock === "function") {
-                                updateMessageBlock(target.index, target.message);
-                            }
-                            setTimeout(() => addKazumaRetryButtons(target.index), 150);
-                        }
-                    }
+
+            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
+                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}"[^>]*>.*?<\/div>`, "g");
+                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, imgTag);
+            } else {
+                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
+                if (placeholderRegex.test(target.message.mes)) {
+                    target.message.mes = target.message.mes.replace(placeholderRegex, imgTag);
+                } else {
+                    target.message.mes += `\n\n${imgTag}`;
                 }
-            } catch (e) { }
-        }, 1000);
+            }
+
+            await saveChat();
+            if (typeof updateMessageBlock === "function") {
+                updateMessageBlock(target.index, target.message);
+            } else {
+                await reloadCurrentChat();
+            }
+            toastr.success("Image injected inline!");
+
+            // Add retry buttons via DOM manipulation (after ST renders)
+            setTimeout(() => addKazumaRetryButtons(target.index), 150);
+        } else if (target && target.message && !target.isInlineAuto) {
+            if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
+            target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
+            if (typeof appendMediaToMessage === "function") appendMediaToMessage(target.message, target.element);
+            await saveChat(); toastr.success("Gallery updated!");
+        } else {
+            const newMsg = { name: "Image Gen Kazuma", is_user: false, is_system: true, send_date: Date.now(), mes: "", extra: { media: [mediaAttach], media_display: "gallery", media_index: 0 }, force_avatar: "img/five.png" };
+            getContext().chat.push(newMsg); await saveChat();
+            if (typeof addOneMessage === "function") addOneMessage(newMsg); else await reloadCurrentChat();
+            toastr.success("Image inserted!");
+        }
+        $("#kazuma_progress_overlay").hide();
     } catch (e) { 
         $("#kazuma_progress_overlay").hide(); 
         toastr.error("Comfy Error: " + e.message); 
