@@ -226,9 +226,6 @@ export function initProfile() {
             customPrompts: null,
             customPromptsEnabled: false
         },
-        // Portraits for characters that are in the scene but not in the NPC Bank,
-        // keyed by lower-cased name. Filled by the automatic portrait generator.
-        portraits: {},
         npcBank: {
             enabled: false,
             oocTrigger: false,
@@ -374,9 +371,6 @@ export function initProfile() {
     if (localProfile.imageGen.injectNpcTags === undefined) localProfile.imageGen.injectNpcTags = false;
     // Story Config (replaces the old standalone POV dropdown and the legacy word count)
     if (!localProfile.storyConfig) localProfile.storyConfig = JSON.parse(JSON.stringify(defaults.storyConfig));
-    if (!localProfile.portraits || typeof localProfile.portraits !== "object") localProfile.portraits = {};
-    // Records banked before their auto portrait was moved onto them pick it up here.
-    (localProfile.npcBank?.npcs || []).forEach(n => adoptPortraitIntoRecord(n));
     if (localProfile.imageGen && localProfile.imageGen.autoPortraits === undefined) localProfile.imageGen.autoPortraits = false;
     Object.keys(defaults.storyConfig).forEach(k => {
         if (localProfile.storyConfig[k] === undefined) localProfile.storyConfig[k] = defaults.storyConfig[k];
@@ -558,6 +552,12 @@ export function initProfile() {
         saveMetadata();
     }
 
+    // --- LOAD AUTO PORTRAITS FROM CHAT METADATA (this fork) ---
+    // Portraits of unbanked characters are chat data, like the NPC list: a new chat
+    // starts with none, whatever the character profile carried over.
+    localProfile.portraits = (chat_metadata && chat_metadata["megumin_portraits"] && typeof chat_metadata["megumin_portraits"] === "object")
+        ? { ...chat_metadata["megumin_portraits"] }
+        : {};
     // --- LOAD NPCs FROM CHAT METADATA ---
     if (chat_metadata && chat_metadata["megumin_npc_bank"]) {
         if (localProfile.npcBank) {
@@ -571,6 +571,9 @@ export function initProfile() {
         saveMetadata();
     }
 
+    // Records banked before their auto portrait was moved onto them pick it up here,
+    // now that both the bank and the portrait map belong to this chat.
+    (localProfile.npcBank?.npcs || []).forEach(n => adoptPortraitIntoRecord(n));
     // The three blocks above are still a migration SOURCE: a chat opened for the first
     // time since chat_metadata became the home for this data has its only copy sitting in
     // settings.json. That residue is the other half of what makes settings.json large, so
@@ -599,6 +602,10 @@ export function initProfile() {
             }
             if (metaHadOnEntry.npcs && stored.npcBank && stored.npcBank.npcs !== undefined) {
                 delete stored.npcBank.npcs;
+                freed = true;
+            }
+            if (stored.portraits !== undefined) {
+                delete stored.portraits;
                 freed = true;
             }
             if (freed) saveSettingsDebounced();
@@ -852,9 +859,15 @@ export function saveProfileToMemory() {
             chat_metadata["megumin_npc_bank"].npcs = bank.npcs || [];
         }
 
+        const portraits = localProfile.portraits;
+        if (portraits && (Object.keys(portraits).length > 0 || chat_metadata["megumin_portraits"] !== undefined)) {
+            chat_metadata["megumin_portraits"] = { ...portraits };
+        }
+
         const hasAnyBlock = !!(chat_metadata["megumin_memory_core"]
             || chat_metadata["megumin_story_plan"]
-            || chat_metadata["megumin_npc_bank"]);
+            || chat_metadata["megumin_npc_bank"]
+            || chat_metadata["megumin_portraits"]);
 
         if (hasAnyBlock) {
             // chat_metadata ends up holding the same array objects as localProfile, so
@@ -864,7 +877,8 @@ export function saveProfileToMemory() {
             const metaStamp = key + "|" + JSON.stringify([
                 chat_metadata["megumin_memory_core"] || null,
                 chat_metadata["megumin_story_plan"] || null,
-                chat_metadata["megumin_npc_bank"] || null
+                chat_metadata["megumin_npc_bank"] || null,
+                chat_metadata["megumin_portraits"] || null
             ]);
             if (metaStamp !== _lastSavedMetaStamp) {
                 _lastSavedMetaStamp = metaStamp;
@@ -886,6 +900,7 @@ export function saveProfileToMemory() {
         delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
     }
 
+    delete profileToSave.portraits; // chat data, lives in chat_metadata like the NPCs
     // Drop prompt text that matches DEFAULT_PROMPTS. Safe on profileToSave because it is
     // already a clone; localProfile keeps the full text the editor is bound to.
     meguminSparsifyProfilePrompts(profileToSave);
