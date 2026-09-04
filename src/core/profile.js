@@ -16,6 +16,7 @@ import {
 import { extensionName } from "./constants.js";
 import { localProfile, setLocalProfile, _loadedProfileKey, setLoadedProfileKey } from "./state.js";
 import { getCharacterKey, getRawAvatar, getAvatarKey, getParentChatKey, getProfileLevel } from "./keys.js";
+import { adoptPortraitIntoRecord } from "./portraits.js";
 import { fireRefreshHook, REFRESH } from "./refreshHooks.js";
 import { meguminSparsifyProfilePrompts, meguminRehydrateProfilePrompts } from "../prompts/storage.js";
 import { DEFAULT_PROMPTS } from "../prompts/defaults.js";
@@ -374,6 +375,8 @@ export function initProfile() {
     // Story Config (replaces the old standalone POV dropdown and the legacy word count)
     if (!localProfile.storyConfig) localProfile.storyConfig = JSON.parse(JSON.stringify(defaults.storyConfig));
     if (!localProfile.portraits || typeof localProfile.portraits !== "object") localProfile.portraits = {};
+    // Records banked before their auto portrait was moved onto them pick it up here.
+    (localProfile.npcBank?.npcs || []).forEach(n => adoptPortraitIntoRecord(n));
     if (localProfile.imageGen && localProfile.imageGen.autoPortraits === undefined) localProfile.imageGen.autoPortraits = false;
     Object.keys(defaults.storyConfig).forEach(k => {
         if (localProfile.storyConfig[k] === undefined) localProfile.storyConfig[k] = defaults.storyConfig[k];

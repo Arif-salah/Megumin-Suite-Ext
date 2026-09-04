@@ -75,3 +75,25 @@ export function setPortrait(name, dataUrl) {
     saveProfileToMemory();
     return true;
 }
+
+// When a character that already has an auto portrait gets banked, the picture
+// moves onto the bank record. The NPC Book card, the side panel's bank list and
+// the vision hand-off all read the record directly, so without this move the
+// bank would show an empty portrait next to a Present Characters card that has
+// one, and a click on Generate would make a second, different face.
+export function adoptPortraitIntoRecord(record) {
+    if (!record || record.pfp) return false;
+    const map = localProfile?.portraits;
+    if (!map || typeof map !== "object") return false;
+    const key = portraitKey(record.name);
+    if (!key) return false;
+    let hit = map[key] ? key : null;
+    if (!hit) {
+        const first = key.split(/\s+/)[0];
+        hit = Object.keys(map).find(k => map[k] && k.split(/\s+/)[0] === first) || null;
+    }
+    if (!hit) return false;
+    record.pfp = map[hit];
+    delete map[hit];
+    return true;
+}
