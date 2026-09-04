@@ -22,6 +22,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { esc, renderBody, renderStatLine } from "./text.js";
+import { resolvePortrait } from "../core/portraits.js";
 
 // The inline formatter renderStatLine expects. Same shape as the one inside
 // renderBody, kept here so a treatment can format a fragment without going
@@ -515,11 +516,15 @@ function renderPersonCard(p) {
     });
 
     const initial = (p.name.match(/\p{L}/u) || ["?"])[0].toUpperCase();
+    const pfp = resolvePortrait(p.name);
+    const avatar = pfp
+        ? `<span class="meg-ws-av meg-av-img"><img src="${esc(pfp)}" alt=""></span>`
+        : `<span class="meg-ws-av">${esc(initial)}</span>`;
 
     return `
         <div class="meg-ws-person${p.isPc ? " meg-ws-pc" : ""}">
             <div class="meg-ws-person-head">
-                <span class="meg-ws-av">${esc(initial)}</span>
+                ${avatar}
                 <span class="meg-ws-nm">${esc(p.name)}</span>
                 ${p.isPc
                     ? `<span class="meg-ws-mood meg-ws-you">You</span>`
@@ -701,9 +706,13 @@ export function renderChatter(parsed) {
     const tints = speakerTints(parsed.turns);
     const bubbles = parsed.turns.map(t => {
         const initial = (t.name.match(/\p{L}/u) || ["?"])[0].toUpperCase();
+        const pfp = resolvePortrait(t.name);
+        const avatar = pfp
+            ? `<span class="meg-chat-av meg-av-img"><img src="${esc(pfp)}" alt=""></span>`
+            : `<span class="meg-chat-av">${esc(initial)}</span>`;
         return `
             <div class="meg-chat-b meg-chat-t${tints[t.name]}">
-                <span class="meg-chat-av">${esc(initial)}</span>
+                ${avatar}
                 <div class="meg-chat-bub">
                     <div class="meg-chat-nm">${esc(t.name)}</div>
                     <div class="meg-chat-tx">${inline(t.text)}</div>

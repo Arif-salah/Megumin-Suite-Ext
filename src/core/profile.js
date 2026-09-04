@@ -205,6 +205,7 @@ export function initProfile() {
             triggerMode: "always",
             autoGenFreq: 1,
             previewPrompt: false,
+            autoPortraits: false,
             savedWorkflowStates: {},
             customPrompts: null,
             customPromptsEnabled: false
@@ -224,6 +225,9 @@ export function initProfile() {
             customPrompts: null,
             customPromptsEnabled: false
         },
+        // Portraits for characters that are in the scene but not in the NPC Bank,
+        // keyed by lower-cased name. Filled by the automatic portrait generator.
+        portraits: {},
         npcBank: {
             enabled: false,
             oocTrigger: false,
@@ -369,6 +373,8 @@ export function initProfile() {
     if (localProfile.imageGen.injectNpcTags === undefined) localProfile.imageGen.injectNpcTags = false;
     // Story Config (replaces the old standalone POV dropdown and the legacy word count)
     if (!localProfile.storyConfig) localProfile.storyConfig = JSON.parse(JSON.stringify(defaults.storyConfig));
+    if (!localProfile.portraits || typeof localProfile.portraits !== "object") localProfile.portraits = {};
+    if (localProfile.imageGen && localProfile.imageGen.autoPortraits === undefined) localProfile.imageGen.autoPortraits = false;
     Object.keys(defaults.storyConfig).forEach(k => {
         if (localProfile.storyConfig[k] === undefined) localProfile.storyConfig[k] = defaults.storyConfig[k];
     });

@@ -1,3 +1,4 @@
+import { resolvePortrait } from "../core/portraits.js";
 /* eslint-disable no-undef */
 /*
  * Megumin Suite — Side Panel shared DOM helpers
@@ -42,12 +43,15 @@ export function isMaleSex(sexStr) {
 export function avatarNode(npc, name) {
     const fallbackChar = (name || "?").trim().charAt(0).toUpperCase();
     const male = npc ? isMaleSex(npc.sex) : null;
+    // A face can come from the bank record or from the profile portrait map
+    // (auto portraits for characters that were never banked).
+    const pfp = (npc && npc.pfp) || resolvePortrait(name);
     const accentClass = male === true ? "meg-sp-av-male"
                        : male === false ? "meg-sp-av-female"
                        : "meg-sp-av-neutral";
-    if (npc && npc.pfp) {
+    if (pfp) {
         return el("div", { class: "meg-sp-av " + accentClass },
-            el("img", { src: npc.pfp, alt: name || "NPC", onerror: function () { this.style.display = "none"; } }));
+            el("img", { src: pfp, alt: name || "NPC", onerror: function () { this.style.display = "none"; } }));
     }
     return el("div", { class: "meg-sp-av meg-sp-av-empty " + accentClass },
         el("span", { class: "meg-sp-av-initial" }, fallbackChar));
