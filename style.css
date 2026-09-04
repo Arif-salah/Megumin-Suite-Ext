@@ -4814,9 +4814,9 @@
     .dock-icon.has-notice i::after { animation: none; }
 }
 
-/* Portrait avatars on the World State card and Inner Chatter bubbles (auto portraits) */
-.meg-ws-av.meg-av-img, .meg-chat-av.meg-av-img { padding: 0; overflow: hidden; }
-.meg-ws-av.meg-av-img img, .meg-chat-av.meg-av-img img {
+/* Portrait avatar on the World State card (auto portraits) */
+.meg-ws-av.meg-av-img { padding: 0; overflow: hidden; }
+.meg-ws-av.meg-av-img img {
   width: 100%; height: 100%; object-fit: cover; object-position: center top;
   border-radius: 50%; display: block;
 }

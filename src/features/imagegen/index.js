@@ -147,7 +147,7 @@ export function renderImageGen(c) {
                 <div class="mtab-toggle-row ${s.autoPortraits ? 'active' : ''}" id="ig_auto_portraits_card" style="padding: 12px 18px; margin-bottom: 15px;">
                     <div class="toggle-info">
                         <div class="toggle-label" style="font-size:0.85rem;">Generate Portraits for Every New Character Automatically</div>
-                        <div class="toggle-desc">After each reply, every character present in the scene without a portrait gets one rendered in the background, banked or not. Portraits show in the NPC Bank, Present Characters, the World State card and Inner Chatter.</div>
+                        <div class="toggle-desc">After each reply, every character present in the scene without a portrait gets one rendered in the background, banked or not. Portraits show in the NPC Bank, Present Characters and the World State card.</div>
                     </div>
                     <div class="ps-switch"></div>
                 </div>

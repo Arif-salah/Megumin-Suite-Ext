@@ -132,7 +132,7 @@ function renderInnerChatter(ctx) {
         const banked = ctx.lookupBankedNpc(g.name);
         wrap.appendChild(el("div", { class: "meg-sp-thought" },
             el("div", { class: "meg-sp-thought-avatar" },
-                avatarNode(banked, g.name),
+                avatarNode(banked, g.name, { portrait: false }),
                 el("div", { class: "meg-sp-thought-bubbles" },
                     el("div", { class: "meg-sp-bubble meg-sp-bubble-2" }),
                     el("div", { class: "meg-sp-bubble meg-sp-bubble-1" }),

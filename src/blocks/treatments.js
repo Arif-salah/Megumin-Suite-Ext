@@ -706,13 +706,9 @@ export function renderChatter(parsed) {
     const tints = speakerTints(parsed.turns);
     const bubbles = parsed.turns.map(t => {
         const initial = (t.name.match(/\p{L}/u) || ["?"])[0].toUpperCase();
-        const pfp = resolvePortrait(t.name);
-        const avatar = pfp
-            ? `<span class="meg-chat-av meg-av-img"><img src="${esc(pfp)}" alt=""></span>`
-            : `<span class="meg-chat-av">${esc(initial)}</span>`;
         return `
             <div class="meg-chat-b meg-chat-t${tints[t.name]}">
-                ${avatar}
+                <span class="meg-chat-av">${esc(initial)}</span>
                 <div class="meg-chat-bub">
                     <div class="meg-chat-nm">${esc(t.name)}</div>
                     <div class="meg-chat-tx">${inline(t.text)}</div>

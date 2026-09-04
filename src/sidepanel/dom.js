@@ -40,12 +40,13 @@ export function isMaleSex(sexStr) {
     return (sexStr || "").trim().toLowerCase().startsWith("m");
 }
 
-export function avatarNode(npc, name) {
+export function avatarNode(npc, name, { portrait = true } = {}) {
     const fallbackChar = (name || "?").trim().charAt(0).toUpperCase();
     const male = npc ? isMaleSex(npc.sex) : null;
     // A face can come from the bank record or from the profile portrait map
     // (auto portraits for characters that were never banked).
-    const pfp = (npc && npc.pfp) || resolvePortrait(name);
+    // Callers that want the initial only (Inner Chatter) pass portrait: false.
+    const pfp = portrait ? ((npc && npc.pfp) || resolvePortrait(name)) : "";
     const accentClass = male === true ? "meg-sp-av-male"
                        : male === false ? "meg-sp-av-female"
                        : "meg-sp-av-neutral";
